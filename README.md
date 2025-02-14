@@ -1,7 +1,7 @@
 
-<h3 align="center">
+<h1 align="center">
     🍉 小瓜 RTC 固件 🤖
-<h3>
+</h1>
 
 <h4 align="center">  
     实时、低成本且易于与 AI 机器人聊天。
