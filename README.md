@@ -1,10 +1,11 @@
-<p align="center" style="font-size: 2.5em">
-    <strong>🍉 小瓜 RTC 固件 🤖<strong>
-</p>
 
-<h3 align="center">  
-实时、低成本且易于与 AI 机器人聊天。
-</h3>
+<h3 align="center">
+    🍉 小瓜 RTC 固件 🤖
+<h3>
+
+<h4 align="center">  
+    实时、低成本且易于与 AI 机器人聊天。
+</h4>
 
 ---
 
