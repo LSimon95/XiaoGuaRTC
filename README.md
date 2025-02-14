@@ -16,6 +16,8 @@
 
 ｜ 简体中文 ｜[ENGLISH](README-EN.md) ｜
 
+📺[两年时间打造的AI女友有点话唠](https://www.bilibili.com/video/BV1P6KKeaEwo/)
+
 QQ 交流群：1034377943
 
 ---
