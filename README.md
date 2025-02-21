@@ -16,6 +16,7 @@
 
 ｜ 简体中文 ｜[ENGLISH](README-EN.md) ｜
 
+📺[方案简介](https://www.bilibili.com/video/BV1QEPceWEBJ/?vd_source=67eca34096f270ba35b7b86448bcdaf7)
 📺[两年时间打造的AI女友有点话唠](https://www.bilibili.com/video/BV1P6KKeaEwo/)
 
 QQ 交流群：1034377943
