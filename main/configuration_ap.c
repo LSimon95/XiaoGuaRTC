@@ -104,14 +104,26 @@ esp_err_t handler_scan(httpd_req_t *r)
 
 void url_decode(char *url, char *decoded)
 {
-  for (size_t i = 0; i < strlen(url); ++i)
+  int len = strlen(url);
+  for (size_t i = 0; i < len; ++i)
   {
-    if (url[i] == '%')
+    if (url[i] == '%' && i + 2 < len)
     {
-      char ch = url[i + 2] - '0' + 16 * (url[i + 1] - '0');
-      *decoded = ch;
-      ++decoded;
-      i += 2;
+      char high = tolower(url[i + 1]);
+      char low = tolower(url[i + 2]);
+
+      if (isxdigit(high) && isxdigit(low))
+      {
+        unsigned char h_val = (high >= 'a') ? (high - 'a' + 10) : (high - '0');
+        unsigned char l_val = (low >= 'a') ? (low - 'a' + 10) : (low - '0');
+        *decoded++ = (h_val << 4) | l_val;
+        i += 2;
+      }
+      else
+      {
+        *decoded++ = '\\';
+        *decoded++ = url[i];
+      }
     }
     else if (url[i] == '+')
     {
