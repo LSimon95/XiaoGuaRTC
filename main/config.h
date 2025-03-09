@@ -17,4 +17,4 @@
 
 #define LED_INDICATOR_BRGHTNSS 5
 
-#define OUT_VOLUME 50
+#define OUT_VOLUME 100

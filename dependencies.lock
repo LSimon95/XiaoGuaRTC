@@ -10,7 +10,7 @@ dependencies:
       type: service
     version: 1.0.4
   espressif/button:
-    component_hash: dddfbf885283f0415391c9851e3df613f77f7a3dac60e766ddbebd912854bce2
+    component_hash: 30a3f495c3862d505ce6e41adbbd218b2750e9723ab2151feff00e9fe685b326
     dependencies:
     - name: espressif/cmake_utilities
       registry_url: https://components.espressif.com
@@ -22,7 +22,7 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 3.4.1
+    version: 3.5.0
   espressif/cmake_utilities:
     component_hash: 351350613ceafba240b761b4ea991e0f231ac7a9f59a9ee901f751bddc0bb18f
     dependencies:
@@ -58,7 +58,7 @@ dependencies:
       type: service
     version: 1.9.5
   espressif/esp_websocket_client:
-    component_hash: 8280960def8af4f84bc58d2d76f55357cd1387775cbc2e0a6b3ca229aa7e209e
+    component_hash: f77326f0e1c38da4e9c97e17c5d649b0dd13027f2645e720e48db269638fd622
     dependencies:
     - name: idf
       require: private
@@ -66,7 +66,7 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 1.3.0
+    version: 1.4.0
   espressif/led_strip:
     component_hash: 28c6509a727ef74925b372ed404772aeedf11cce10b78c3f69b3c66799095e2d
     dependencies:
@@ -80,7 +80,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.5.0
+    version: 5.4.0
   sepfy/libpeer:
     dependencies:
     - name: sepfy/srtp
@@ -88,7 +88,7 @@ dependencies:
     - name: sepfy/usrsctp
       version: ^0.9.5
     source:
-      path: /Users/simon/Documents/XiaoGuaRTC/managed_components/libpeer
+      path: E:\AIvoice\XiaoGuaRTC\managed_components\libpeer
       type: local
     version: 0.0.2
   sepfy/srtp:
@@ -112,6 +112,6 @@ direct_dependencies:
 - espressif/esp_websocket_client
 - espressif/led_strip
 - sepfy/libpeer
-manifest_hash: 3b6ebdedf10bc179b1e20dbf1a9ee5402a73cd16e3320b2d5354de407351a6b6
+manifest_hash: ce93011a2d1e3a2d8dbc384704d3983032ff5bcd514ac2c4cbe33eb5ed9b7883
 target: esp32s3
 version: 2.0.0

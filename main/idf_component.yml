@@ -5,5 +5,5 @@ dependencies:
   78/esp-opus: "^1.0.4"
   espressif/esp_websocket_client: "^1.3.0"
   sepfy/libpeer:
-    path: /Users/simon/Documents/XiaoGuaRTC/managed_components/libpeer
+    path: E:/AIvoice/XiaoGuaRTC/managed_components/libpeer
     version: ">=0.0.2"

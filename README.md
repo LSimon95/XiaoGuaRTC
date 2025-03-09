@@ -45,7 +45,7 @@ QQ 交流群：1034377943
 
 ## 编译指南
 1. 克隆代码仓库。
-2. 克隆 [libpeer](https://github.com/sepfy/libpeer) 并将其放在 `managed_components` 文件夹中。
+2. 克隆 [libpeer](https://github.com/sepfy/libpeer) ，注意选择aiortc_turn_opus分支，并将其放在 `managed_components` 文件夹中。
 3. 使用 ESP-IDF 框架打开项目。
 4. 编译项目并烧录固件。
 
