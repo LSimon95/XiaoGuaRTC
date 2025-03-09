@@ -18,6 +18,9 @@
 #include "opus.h"
 #include "peer_connection.h"
 
+#include "nvs_flash.h"
+#include "nvs.h"
+
 static const char *TAG = "AUDIO";
 
 #define IN_SAMPLE_RATE 16000
@@ -42,6 +45,9 @@ extern chat_config_t g_chat_config;
 extern PeerConnection *g_pc;
 
 QueueHandle_t g_aec_ref_queue = NULL;
+
+// 添加音量控制全局变量,默认音量70%
+static uint8_t g_output_volume = 70;  
 
 void wake_audio_detect()
 {
@@ -382,6 +388,9 @@ void audio_task(void *pvParameter)
     vTaskDelay(pdMS_TO_TICKS(100));
   xTaskCreatePinnedToCore(audio_deliver_task, "audio_deliver_task", 7 * 4049, NULL, PRIORITY_AUDIO_DELIVER_TASK, NULL, 0);
 
+  // 加载保存的音量设置
+  load_volume_settings();
+
   opus_packet_t opus_packet;
   int16_t pcm[OPUS_OUT_FRAME_SIZE];
   int32_t i32_samples_buffer[OPUS_OUT_FRAME_SIZE];
@@ -396,10 +405,10 @@ void audio_task(void *pvParameter)
       if (samples != OPUS_OUT_FRAME_SIZE)
         ESP_LOGE(TAG, "Frame size mismatch %d", samples);
 
-      free(opus_packet.data);
+      free((void*)opus_packet.data);
 
       for (int i = 0; i < OPUS_OUT_FRAME_SIZE; i++)
-        i32_samples_buffer[i] = (int32_t)(pcm[i]) * 327 * OUT_VOLUME;
+        i32_samples_buffer[i] = (int32_t)(pcm[i]) * 981 * g_output_volume;
 
       if (i2s_channel_write(tx_handle, i32_samples_buffer, OPUS_OUT_FRAME_SIZE * 4, &bytes_written, portMAX_DELAY))
       {
@@ -421,4 +430,35 @@ void audio_task(void *pvParameter)
   i2s_channel_disable(rx_handle);
   vQueueDelete(g_audio_out_queue);
   vQueueDelete(g_aec_ref_queue);
+}
+
+// 添加音量控制相关函数实现
+void set_output_volume(uint8_t volume) {
+    g_output_volume = volume > 100 ? 100 : volume;  // 限制最大音量为100%
+    save_volume_settings();  // 保存设置到NVS
+}
+
+uint8_t get_output_volume(void) {
+    return g_output_volume;
+}
+
+// 添加音量设置持久化存储功能
+void save_volume_settings(void) {
+    nvs_handle_t handle;
+    if (nvs_open("audio", NVS_READWRITE, &handle) == ESP_OK) {
+        nvs_set_u8(handle, "volume", g_output_volume);
+        nvs_commit(handle);
+        nvs_close(handle);
+    }
+}
+
+void load_volume_settings(void) {
+    nvs_handle_t handle;
+    if (nvs_open("audio", NVS_READONLY, &handle) == ESP_OK) {
+        uint8_t volume = 70;  // 默认值
+        if (nvs_get_u8(handle, "volume", &volume) == ESP_OK) {
+            g_output_volume = volume;
+        }
+        nvs_close(handle);
+    }
 }
