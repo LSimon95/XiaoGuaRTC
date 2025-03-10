@@ -15,6 +15,7 @@
 #include "led_strip.h"
 #include "sdkconfig.h"
 #include "iot_button.h"
+#include "audio.h"
 
 #include <nvs.h>
 #include <nvs_flash.h>
@@ -30,6 +31,11 @@ static const char *TAG = "MAIN";
 static led_strip_handle_t led_strip;
 extern chat_config_t g_chat_config;
 extern bool g_chat_server_connected;
+
+static void volume_up_click_cb(void *button_handle, void *usr_data);
+static void volume_up_long_press_cb(void *button_handle, void *usr_data);
+static void volume_down_click_cb(void *button_handle, void *usr_data);
+static void volume_down_long_press_cb(void *button_handle, void *usr_data);
 
 void configure_led(void)
 {
@@ -72,11 +78,66 @@ void configure_control()
       },
   };
 
+  button_config_t volume_up = {
+      .type = BUTTON_TYPE_GPIO,
+      .long_press_time = 1000,
+      .short_press_time = 50,
+      .gpio_button_config = {
+          .gpio_num = VOLUME_UP_GPIO,
+          .active_level = 0,
+      },
+  };
+
+  button_config_t volume_down = {
+      .type = BUTTON_TYPE_GPIO,
+      .long_press_time = 1000,
+      .short_press_time = 50,
+      .gpio_button_config = {
+          .gpio_num = VOLUME_DOWN_GPIO,
+          .active_level = 0,
+      },
+  };
+
   button_handle_t btn_handle = iot_button_create(&button_reset);
+  button_handle_t vol_up_handle = iot_button_create(&volume_up);
+  button_handle_t vol_down_handle = iot_button_create(&volume_down);
+
   if (btn_handle == NULL)
     ESP_LOGE(TAG, "Failed to create button");
 
   iot_button_register_cb(btn_handle, BUTTON_LONG_PRESS_START, reset_button_long_press_cb, NULL);
+  iot_button_register_cb(vol_up_handle, BUTTON_SINGLE_CLICK, volume_up_click_cb, NULL);
+  iot_button_register_cb(vol_up_handle, BUTTON_LONG_PRESS_START, volume_up_long_press_cb, NULL);
+  iot_button_register_cb(vol_down_handle, BUTTON_SINGLE_CLICK, volume_down_click_cb, NULL);
+  iot_button_register_cb(vol_down_handle, BUTTON_LONG_PRESS_START, volume_down_long_press_cb, NULL);
+}
+
+static void volume_up_click_cb(void *button_handle, void *usr_data)
+{
+  uint8_t volume = get_output_volume();
+  volume = (volume + 10 > 100) ? 100 : volume + 10;
+  set_output_volume(volume);
+  ESP_LOGI(TAG, "Volume up: %d", volume);
+}
+
+static void volume_up_long_press_cb(void *button_handle, void *usr_data)
+{
+  set_output_volume(100);
+  ESP_LOGI(TAG, "Volume max");
+}
+
+static void volume_down_click_cb(void *button_handle, void *usr_data)
+{
+  uint8_t volume = get_output_volume();
+  volume = (volume < 10) ? 0 : volume - 10;
+  set_output_volume(volume);
+  ESP_LOGI(TAG, "Volume down: %d", volume);
+}
+
+static void volume_down_long_press_cb(void *button_handle, void *usr_data)
+{
+  set_output_volume(0);
+  ESP_LOGI(TAG, "Volume min");
 }
 
 void app_main(void)
