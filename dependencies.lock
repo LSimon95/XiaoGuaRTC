@@ -80,7 +80,7 @@ dependencies:
   idf:
     source:
       type: idf
-    version: 5.4.0
+    version: 5.5.0
   sepfy/libpeer:
     dependencies:
     - name: sepfy/srtp
@@ -88,7 +88,7 @@ dependencies:
     - name: sepfy/usrsctp
       version: ^0.9.5
     source:
-      path: E:\AIvoice\XiaoGuaRTC\managed_components\libpeer
+      path: /Users/simon/Documents/XiaoGuaRTC/managed_components/libpeer
       type: local
     version: 0.0.2
   sepfy/srtp:
@@ -112,6 +112,6 @@ direct_dependencies:
 - espressif/esp_websocket_client
 - espressif/led_strip
 - sepfy/libpeer
-manifest_hash: ce93011a2d1e3a2d8dbc384704d3983032ff5bcd514ac2c4cbe33eb5ed9b7883
+manifest_hash: dd6c923059e506c938e0245edbf5a919a547ef0898959025a5af52178a708cff
 target: esp32s3
 version: 2.0.0
