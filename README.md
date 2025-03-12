@@ -46,7 +46,7 @@ QQ 交流群：1034377943
 ## 编译指南
 0. 编译环境准备，IDF V5.5，需要从[乐鑫官方库](https://github.com/espressif/esp-idf.git)中克隆。因为细致调整了 ESP SR 的内存使用，在低版本的 IDF 中没有可调整选项，所以可能会出现性能问题。
 1. 克隆代码仓库。
-2. 克隆 [libpeer](https://github.com/LSimon95/libpeer) ，注意选择aiortc_turn_opus分支，并将其放在 `/managed_components` 文件夹中。
+2. 克隆 [libpeer](https://github.com/LSimon95/libpeer) ，注意选择aiortc_turn_opus分支，并将其放在 `XiaoGuaRTC/managed_components` 文件夹中。
 3. 使用 ESP-IDF 框架打开项目。
 4. 编译项目并烧录固件。
 
