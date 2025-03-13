@@ -1,8 +1,5 @@
 #pragma once
 
-
-#define configUSE_TRACE_FACILITY 1
-
 #include <esp_err.h>
 #include <freertos/FreeRTOS.h>
 

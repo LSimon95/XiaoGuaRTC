@@ -43,11 +43,10 @@ QueueHandle_t g_audio_out_queue = NULL;
 bool g_afe_enable = false;
 extern chat_config_t g_chat_config;
 extern PeerConnection *g_pc;
-
 QueueHandle_t g_aec_ref_queue = NULL;
-
 // 添加音量控制全局变量,默认音量70%
 static uint8_t g_output_volume = 70;  
+extern bool g_ws_playing;
 
 void wake_audio_detect()
 {
@@ -68,7 +67,6 @@ void wake_word_detect(uint8_t *wake_audio_buffer, uint8_t *wake_audio_buffer_ptr
       ESP_LOGI(TAG, "Wake word detected time: %d ms", (int)(esp_log_timestamp() - start_time));
       if (g_chat_config.chat_state == CHAT_STATE_WAIT_REGIST)
       {
-
         wake_play_code();
       }
       else if (g_chat_config.chat_state == CHAT_STATE_IDLE)
@@ -273,6 +271,9 @@ void audio_mic_task(void *pvParameter)
       ESP_LOGE(TAG, "Failed to read from MIC");
       break;
     }
+
+    if (g_ws_playing)
+      continue;
 
     int n_sample = bytes_read / sizeof(int32_t);
     if (n_sample != OPUS_IN_FRAME_SIZE)

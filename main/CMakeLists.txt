@@ -1,4 +1,4 @@
-set(SOURCES "led.c"
+set(SOURCES "display.c"
             "system_info.c"
             "configuration_ap.c"
             "network.c"
@@ -13,16 +13,18 @@ set(INCLUDE_DIRS ".")
 idf_component_register(
     SRCS ${SOURCES}
     INCLUDE_DIRS ${INCLUDE_DIRS}
+    EMBED_FILES "assets/no_wifi.ebm" "assets/regist.ebm" "assets/emo_neutral.ebm" "assets/emo_wink.ebm" "assets/emo_happy1.ebm" "assets/emo_happy2.ebm" "assets/emo_sad1.ebm" "assets/emo_sad2.ebm" "assets/emo_angry1.ebm" "assets/emo_angry2.ebm" 
     EMBED_TXTFILES "assets/wifi_configuration_ap.html"
     REQUIRES 
         nvs_flash 
-        button 
-        esp_http_client 
+        button
+        esp_http_client
         esp_http_server
-        esp_wifi        # 添加 WiFi 组件
-        spi_flash      # 添加 Flash 组件
-        app_update      # 添加这一行
-        driver        # 添加 GPIO 驱动
-        led_strip    # 添加 LED 控制
-        esp_adc      # 添加 ADC 支持
+        esp_wifi
+        spi_flash 
+        app_update 
+        driver
+        led_strip
+        esp_adc
+        esp_lcd
 )

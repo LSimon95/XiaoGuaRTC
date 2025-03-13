@@ -11,6 +11,14 @@ enum chat_state_t
   CHAT_STATE_CONNECTED,
 };
 
+enum emo_state_t
+{
+  EMO_NEUTRAL = 0,
+  EMO_HAPPY,
+  EMO_SAD,
+  EMO_ANGRY,
+};
+
 typedef struct
 {
   char *token;

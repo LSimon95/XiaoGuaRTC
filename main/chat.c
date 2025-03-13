@@ -14,7 +14,6 @@
 #include <esp_websocket_client.h>
 
 static const char *TAG = "CHAT";
-int get_code_cnt = 0;
 PeerConnection *g_pc;
 PeerConnectionState eState = PEER_CONNECTION_CLOSED;
 int gDataChannelOpened = 0;
@@ -31,13 +30,9 @@ char *g_remote_sdp_wait_recv = NULL;
 
 bool g_chat_server_connected = false;
 
-enum ws_play_state_t
-{
-  WS_PLAY_STATE_READY = 0,
-  WS_PLAY_STATE_PLAYING,
-};
+bool g_ws_playing = false;
 
-enum ws_play_state_t g_ws_play_state = WS_PLAY_STATE_READY;
+enum emo_state_t g_emo_state = EMO_NEUTRAL;
 
 static int wait_ws_res(int timeout)
 {
@@ -78,15 +73,19 @@ void ws_recv(void *event_handler_arg,
       return;
     }
 
-    if (g_ws_play_state == WS_PLAY_STATE_READY && cJSON_GetObjectItem(ws_res, "audio_start"))
+    const char *cmd_str = cJSON_Print(ws_res);
+    ESP_LOGI(TAG, "ws received data: %s", cmd_str);
+    free((void *)cmd_str);
+
+    if (!g_ws_playing && cJSON_GetObjectItem(ws_res, "audio_start"))
     {
-      g_ws_play_state = WS_PLAY_STATE_PLAYING;
+      g_ws_playing = true;
       cJSON_Delete(ws_res);
       return;
     }
-    else if (g_ws_play_state == WS_PLAY_STATE_PLAYING && cJSON_GetObjectItem(ws_res, "audio_end"))
+    else if (g_ws_playing && cJSON_GetObjectItem(ws_res, "audio_end"))
     {
-      g_ws_play_state = WS_PLAY_STATE_READY;
+      g_ws_playing = false;
       cJSON_Delete(ws_res);
 
       if (g_chat_config.chat_state == CHAT_STATE_CONNECTED_WAIT_WS_TURN)
@@ -96,22 +95,44 @@ void ws_recv(void *event_handler_arg,
     else
     {
       cJSON *cmd = cJSON_GetObjectItem(ws_res, "cmd");
-      if (cmd && strcmp(cmd->valuestring, "server_sdp") == 0)
+      if (cmd)
       {
-        const char *sdp = cJSON_GetObjectItem(ws_res, "sdp")->valuestring;
-        ESP_LOGI(TAG, "Received remote sdp%s", sdp);
-        g_remote_sdp_wait_recv = malloc(strlen(sdp) + 1);
-        strcpy(g_remote_sdp_wait_recv, sdp);
+        if (strcmp(cmd->valuestring, "server_sdp") == 0)
+        {
+          const char *sdp = cJSON_GetObjectItem(ws_res, "sdp")->valuestring;
+          ESP_LOGI(TAG, "Received remote sdp%s", sdp);
+          g_remote_sdp_wait_recv = malloc(strlen(sdp) + 1);
+          strcpy(g_remote_sdp_wait_recv, sdp);
 
-        cJSON_Delete(ws_res);
-        return;
+          cJSON_Delete(ws_res);
+          return;
+        }
+        else if (strcmp(cmd->valuestring, "emotion") == 0)
+        {
+          cJSON *emotion = cJSON_GetObjectItem(ws_res, "emotion");
+          if (emotion)
+          {
+            if (strcmp(emotion->valuestring, "happy") == 0)
+              g_emo_state = EMO_HAPPY;       
+            else if (strcmp(emotion->valuestring, "sad") == 0)
+              g_emo_state = EMO_SAD;
+            else if (strcmp(emotion->valuestring, "angry") == 0)
+              g_emo_state = EMO_ANGRY;
+            else
+              g_emo_state = EMO_NEUTRAL;
+          }
+          cJSON_Delete(ws_res);
+          return;
+        }
       }
     }
 
     if (g_ws_res)
     {
       cJSON_Delete(ws_res);
-      ESP_LOGW(TAG, "ws_res is not null, skip");
+      const char *g_ws_res_str = cJSON_Print(g_ws_res);
+      ESP_LOGW(TAG, "g_ws_res is not NULL %s", g_ws_res_str);
+      free((void *)g_ws_res_str);
       return;
     }
 
@@ -220,6 +241,9 @@ int ws_send_cmd_and_wait_json(const char *cmd, cJSON *data, cJSON **res, int tim
     if (res)
       *res = cJSON_Duplicate(g_ws_res, 1);
 
+    cJSON_Delete(g_ws_res);
+    g_ws_res = NULL;
+
     xSemaphoreGive(g_ws_client_lock);
     return 0;
   }
@@ -238,29 +262,29 @@ int ws_send_cmd_and_wait_play_done(const char *cmd, cJSON *data, int timeout)
     return -1;
   }
 
-  g_ws_play_state = WS_PLAY_STATE_READY;
+  g_ws_playing = false;
 
   uint32_t cnt = 0;
-  while (g_ws_play_state != WS_PLAY_STATE_PLAYING && ++cnt < timeout)
+  while (!g_ws_playing && ++cnt < timeout)
     vTaskDelay(pdMS_TO_TICKS(10));
 
-  while (g_ws_play_state == WS_PLAY_STATE_PLAYING && ++cnt < timeout)
+  while (g_ws_playing && ++cnt < timeout)
     vTaskDelay(pdMS_TO_TICKS(10));
 
   if (cnt++ >= timeout)
   {
     ESP_LOGE(TAG, "Timeout to wait play done");
     xSemaphoreGive(g_ws_client_lock);
-    g_ws_play_state = WS_PLAY_STATE_READY;
+    g_ws_playing = false;
     return -1;
   }
 
   xSemaphoreGive(g_ws_client_lock);
-  g_ws_play_state = WS_PLAY_STATE_READY;
+  g_ws_playing = false;
   return 0;
 }
 
-int request_code()
+cJSON *request_code()
 {
   cJSON *cmd = cJSON_CreateObject();
   uint8_t mac[6];
@@ -283,14 +307,12 @@ int request_code()
     ESP_LOGE(TAG, "Failed to get code");
     goto fail;
   }
-
-  cJSON_Delete(res);
-  return 0;
+  return res;
 
 fail:
   if (res)
     cJSON_Delete(res);
-  return -1;
+  return NULL;
 }
 
 void wake_play_code()
@@ -310,17 +332,12 @@ void regist_board(void)
 
   while (1)
   {
-    if (get_code_cnt > 20)
-    {
-      vTaskDelay(pdMS_TO_TICKS(100));
-      continue;
-    }
 
     ESP_LOGI(TAG, "Registering the board");
-
-    if (request_code() == 0)
+    cJSON *regist_code_res = request_code();
+    if (regist_code_res)
     {
-      cJSON *code = cJSON_GetObjectItem(g_ws_res, "code");
+      cJSON *code = cJSON_GetObjectItem(regist_code_res, "code");
       if (code)
       {
         ESP_LOGI(TAG, "Received code: %s", code->valuestring);
@@ -332,7 +349,7 @@ void regist_board(void)
         }
       }
 
-      cJSON *token = cJSON_GetObjectItem(g_ws_res, "token");
+      cJSON *token = cJSON_GetObjectItem(regist_code_res, "token");
       if (token)
       {
         ESP_LOGI(TAG, "Received token: %s", token->valuestring);
@@ -345,10 +362,11 @@ void regist_board(void)
         vTaskDelay(pdMS_TO_TICKS(3000));
         esp_restart();
       }
+
+      cJSON_Delete(regist_code_res);
     }
 
     vTaskDelay(pdMS_TO_TICKS(10000));
-    get_code_cnt++;
   }
 }
 
@@ -446,7 +464,7 @@ int chat_send_audio(const char *data, size_t len)
   }
 
   int res = -1;
-  if (g_ws_play_state != WS_PLAY_STATE_PLAYING)
+  if (!g_ws_playing)
   {
     if (g_chat_config.chat_state == CHAT_STATE_CONNECTED)
       res = peer_connection_send_audio(g_pc, (const uint8_t *)data, len);
@@ -457,7 +475,7 @@ int chat_send_audio(const char *data, size_t len)
 
     return res;
   }
-  
+
   return 0;
 }
 
@@ -467,7 +485,7 @@ void ws_talk_task(void *pvParameters)
   ws_send_cmd_and_wait_play_done("chat", cmd, portMAX_DELAY);
   cJSON_Delete(cmd);
 
-  g_ws_play_state = WS_PLAY_STATE_READY;
+  g_ws_playing = false;
   vTaskDelete(NULL);
 
   while (1)
