@@ -4,7 +4,7 @@
 
 #define RESET_BUTTON_GPIO        GPIO_NUM_0
 
-#define BASE_URL "http://192.168.1.15:8000"
+#define BASE_URL "https://zideai.com"
 
 #define MIN(a,b) (((a)<(b))?(a):(b))
 #define MAX(a,b) (((a)>(b))?(a):(b))
