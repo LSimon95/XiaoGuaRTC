@@ -43,12 +43,16 @@ QueueHandle_t g_audio_out_queue = NULL;
 bool g_afe_enable = false;
 extern chat_config_t g_chat_config;
 extern PeerConnection *g_pc;
-QueueHandle_t g_aec_ref_queue = NULL;
 // 添加音量控制全局变量,默认音量70%
-static uint8_t g_output_volume = 70;
+static uint8_t g_output_volume = DEFAULT_VOLUME;
 extern bool g_ws_playing;
 
 static bool g_mic_enable = true;
+
+#define PCM_OUT_BUF_CACHE_N 5
+int16_t pcm_out_buf[OPUS_OUT_FRAME_SIZE * PCM_OUT_BUF_CACHE_N];
+int pcm_out_buf_idx = 0;
+int pcm_out_buf_mic_ref_idx = 0;
 
 void wake_audio_detect()
 {
@@ -234,7 +238,7 @@ void audio_mic_task(void *pvParameter)
       .wakenet_model_name = NULL,
       .wakenet_model_name_2 = NULL,
       .wakenet_mode = DET_MODE_90,
-      .afe_mode = SR_MODE_LOW_COST,
+      .afe_mode = SR_MODE_HIGH_PERF,
       .afe_perferred_core = 1,
       .afe_perferred_priority = PRIORITY_AFE_TASK,
       .afe_ringbuf_size = 50,
@@ -295,17 +299,21 @@ void audio_mic_task(void *pvParameter)
       buffer_pcm_tail[2 * i] = sample;
     }
 
-    // ref -> pcm
-    int16_t *pcm_ref = NULL;
-    if (xQueueReceive(g_aec_ref_queue, &pcm_ref, 0) == pdTRUE)
+    if (pcm_out_buf_mic_ref_idx != pcm_out_buf_idx)
     {
+      int16_t *pcm_ref = pcm_out_buf + pcm_out_buf_mic_ref_idx * OPUS_OUT_FRAME_SIZE;
       for (int i = 0; i < n_sample; i++)
         buffer_pcm_tail[2 * i + 1] = pcm_ref[i];
-      free(pcm_ref);
+
+      pcm_out_buf_mic_ref_idx++;
+      if (pcm_out_buf_mic_ref_idx >= PCM_OUT_BUF_CACHE_N)
+        pcm_out_buf_mic_ref_idx = 0;
     }
     else
       for (int i = 0; i < n_sample; i++)
         buffer_pcm_tail[2 * i + 1] = 0;
+
+
     buffer_pcm_tail += 2 * n_sample;
 
     // feed to AFE
@@ -383,8 +391,6 @@ void audio_task(void *pvParameter)
     return;
   }
 
-  g_aec_ref_queue = xQueueCreate(10, sizeof(int16_t *));
-
   i2s_channel_enable(tx_handle);
 
   xTaskCreate(audio_mic_task, "audio_recv_task", 4096 * 3, rx_handle, PRIORITY_MIC_TASK, NULL);
@@ -396,7 +402,6 @@ void audio_task(void *pvParameter)
   load_volume_settings();
 
   opus_packet_t opus_packet;
-  int16_t pcm[OPUS_OUT_FRAME_SIZE];
   int32_t i32_samples_buffer[OPUS_OUT_FRAME_SIZE];
   size_t bytes_written;
   while (1)
@@ -404,6 +409,7 @@ void audio_task(void *pvParameter)
 
     if (xQueueReceive(g_audio_out_queue, &opus_packet, portMAX_DELAY) == pdTRUE)
     {
+      int16_t *pcm = pcm_out_buf + pcm_out_buf_idx * OPUS_OUT_FRAME_SIZE;
       int samples = opus_decode(decoder, (const unsigned char *)opus_packet.data, opus_packet.len, pcm, OPUS_OUT_FRAME_SIZE, 0);
 
       if (samples != OPUS_OUT_FRAME_SIZE)
@@ -424,15 +430,9 @@ void audio_task(void *pvParameter)
         break;
       }
 
-      // aec ref
-      int16_t *pcm_ref = malloc(OPUS_OUT_FRAME_SIZE * sizeof(int16_t));
-      memcpy(pcm_ref, pcm, OPUS_OUT_FRAME_SIZE * sizeof(int16_t));
-      int res = xQueueSend(g_aec_ref_queue, &pcm_ref, 0);
-      if (res != pdTRUE)
-      {
-        ESP_LOGW(TAG, "Failed to send aec ref");
-        free(pcm_ref);
-      }
+      pcm_out_buf_idx++;
+      if (pcm_out_buf_idx >= PCM_OUT_BUF_CACHE_N)
+        pcm_out_buf_idx = 0;
     }
   }
 
@@ -440,7 +440,6 @@ void audio_task(void *pvParameter)
   i2s_channel_disable(tx_handle);
   i2s_channel_disable(rx_handle);
   vQueueDelete(g_audio_out_queue);
-  vQueueDelete(g_aec_ref_queue);
 }
 
 // 添加音量控制相关函数实现
