@@ -26,7 +26,9 @@ QQ 交流群：1034377943
 ## 快速启动
 
 ### 1. 准备硬件
-兼容 [小智](https://github.com/78/xiaozhi-esp32) 硬件，但此版本仅需要麦克风(INMP441)和扬声器(MAX98357A)。目前仅支持 ESP32S3-N16R8 芯片。
+兼容 [小智](https://github.com/78/xiaozhi-esp32) 硬件，但此版本需要麦克风(INMP441)，扬声器(MAX98357A)和0.91寸 OLED（SSD1306）屏幕。目前仅支持 ESP32S3-N16R8 芯片。
+
+🌟若小智面包板可直接烧录使用。
 ### 2. 下载并烧录固件
 从 [发布页面](https://github.com/LSimon95/XiaoGuaRTC/releases)下载最新固件。如果你想自己编译固件，请参考[编译指南](#编译指南)。使用[esptool](https://docs.espressif.com/projects/esp-test-tools/zh_CN/latest/esp32/production_stage/tools/flash_download_tool.html)将固件烧录到 ESP32S3 芯片。
 ### 3. 连接互联网并注册硬件
