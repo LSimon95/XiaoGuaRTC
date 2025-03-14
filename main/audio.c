@@ -45,8 +45,10 @@ extern chat_config_t g_chat_config;
 extern PeerConnection *g_pc;
 QueueHandle_t g_aec_ref_queue = NULL;
 // 添加音量控制全局变量,默认音量70%
-static uint8_t g_output_volume = 70;  
+static uint8_t g_output_volume = 70;
 extern bool g_ws_playing;
+
+static bool g_mic_enable = true;
 
 void wake_audio_detect()
 {
@@ -58,8 +60,11 @@ void wake_word_detect(uint8_t *wake_audio_buffer, uint8_t *wake_audio_buffer_ptr
   int start_time = esp_log_timestamp();
   cJSON *res = NULL;
   cJSON *data = cJSON_CreateObject();
-  if (ws_send_cmd_and_wait_json(
-          "wake", data, &res, 100, (const char *)wake_audio_buffer, (wake_audio_buffer_ptr - wake_audio_buffer)) == 0)
+
+  g_mic_enable = false;
+  int wake_status = ws_send_cmd_and_wait_json("wake", data, &res, 500, (const char *)wake_audio_buffer, (wake_audio_buffer_ptr - wake_audio_buffer));
+  g_mic_enable = true;
+  if (wake_status == 0)
   {
     cJSON *status = cJSON_GetObjectItem(res, "status");
     if (status && status->valueint == 1)
@@ -272,9 +277,6 @@ void audio_mic_task(void *pvParameter)
       break;
     }
 
-    if (g_ws_playing)
-      continue;
-
     int n_sample = bytes_read / sizeof(int32_t);
     if (n_sample != OPUS_IN_FRAME_SIZE)
     {
@@ -310,7 +312,8 @@ void audio_mic_task(void *pvParameter)
     int16_t *buffer_pcm_ptr_feed = buffer_pcm;
     while (buffer_pcm_tail - buffer_pcm_ptr_feed >= chunk_frame_size * 2)
     {
-      afe_handle->feed(g_afe_data, buffer_pcm_ptr_feed);
+      if (g_mic_enable)
+        afe_handle->feed(g_afe_data, buffer_pcm_ptr_feed);
       buffer_pcm_ptr_feed += chunk_frame_size * 2;
     }
 
@@ -404,12 +407,16 @@ void audio_task(void *pvParameter)
       int samples = opus_decode(decoder, (const unsigned char *)opus_packet.data, opus_packet.len, pcm, OPUS_OUT_FRAME_SIZE, 0);
 
       if (samples != OPUS_OUT_FRAME_SIZE)
-        ESP_LOGE(TAG, "Frame size mismatch %d", samples);
+      {
+        ESP_LOGW(TAG, "Frame size mismatch (speaker) %d", samples);
+        for (int i = 0; i < OPUS_OUT_FRAME_SIZE; i++)
+          i32_samples_buffer[i] = 0;
+      }
+      else
+        for (int i = 0; i < OPUS_OUT_FRAME_SIZE; i++)
+          i32_samples_buffer[i] = (int32_t)(pcm[i]) * 981 * g_output_volume;
 
-      free((void*)opus_packet.data);
-
-      for (int i = 0; i < OPUS_OUT_FRAME_SIZE; i++)
-        i32_samples_buffer[i] = (int32_t)(pcm[i]) * 981 * g_output_volume;
+      free((void *)opus_packet.data);
 
       if (i2s_channel_write(tx_handle, i32_samples_buffer, OPUS_OUT_FRAME_SIZE * 4, &bytes_written, portMAX_DELAY))
       {
@@ -422,7 +429,10 @@ void audio_task(void *pvParameter)
       memcpy(pcm_ref, pcm, OPUS_OUT_FRAME_SIZE * sizeof(int16_t));
       int res = xQueueSend(g_aec_ref_queue, &pcm_ref, 0);
       if (res != pdTRUE)
+      {
+        ESP_LOGW(TAG, "Failed to send aec ref");
         free(pcm_ref);
+      }
     }
   }
 
@@ -434,32 +444,39 @@ void audio_task(void *pvParameter)
 }
 
 // 添加音量控制相关函数实现
-void set_output_volume(uint8_t volume) {
-    g_output_volume = volume > 100 ? 100 : volume;  // 限制最大音量为100%
-    save_volume_settings();  // 保存设置到NVS
+void set_output_volume(uint8_t volume)
+{
+  g_output_volume = volume > 100 ? 100 : volume; // 限制最大音量为100%
+  save_volume_settings();                        // 保存设置到NVS
 }
 
-uint8_t get_output_volume(void) {
-    return g_output_volume;
+uint8_t get_output_volume(void)
+{
+  return g_output_volume;
 }
 
 // 添加音量设置持久化存储功能
-void save_volume_settings(void) {
-    nvs_handle_t handle;
-    if (nvs_open("audio", NVS_READWRITE, &handle) == ESP_OK) {
-        nvs_set_u8(handle, "volume", g_output_volume);
-        nvs_commit(handle);
-        nvs_close(handle);
-    }
+void save_volume_settings(void)
+{
+  nvs_handle_t handle;
+  if (nvs_open("audio", NVS_READWRITE, &handle) == ESP_OK)
+  {
+    nvs_set_u8(handle, "volume", g_output_volume);
+    nvs_commit(handle);
+    nvs_close(handle);
+  }
 }
 
-void load_volume_settings(void) {
-    nvs_handle_t handle;
-    if (nvs_open("audio", NVS_READONLY, &handle) == ESP_OK) {
-        uint8_t volume = 70;  // 默认值
-        if (nvs_get_u8(handle, "volume", &volume) == ESP_OK) {
-            g_output_volume = volume;
-        }
-        nvs_close(handle);
+void load_volume_settings(void)
+{
+  nvs_handle_t handle;
+  if (nvs_open("audio", NVS_READONLY, &handle) == ESP_OK)
+  {
+    uint8_t volume = 70; // 默认值
+    if (nvs_get_u8(handle, "volume", &volume) == ESP_OK)
+    {
+      g_output_volume = volume;
     }
+    nvs_close(handle);
+  }
 }
